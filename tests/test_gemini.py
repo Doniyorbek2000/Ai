@@ -3,7 +3,7 @@
 import base64
 import json
 
-import httpx
+import httpx2
 import pytest
 from google import genai
 from google.genai import types
@@ -16,26 +16,26 @@ from .fakes import skin_result
 
 
 def gemini_transport(parts=None, finish="STOP", block=None, status=200, captured=None):
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         if captured is not None:
             captured.append(request)
         if status != 200:
-            return httpx.Response(status, json={"error": {"code": status, "message": "boom", "status": "INTERNAL"}})
+            return httpx2.Response(status, json={"error": {"code": status, "message": "boom", "status": "INTERNAL"}})
         body = {"usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 10}}
         if block:
             body["promptFeedback"] = {"blockReason": block}
         else:
             body["candidates"] = [{"content": {"role": "model", "parts": parts or []}, "finishReason": finish}]
-        return httpx.Response(200, json=body)
+        return httpx2.Response(200, json=body)
 
-    return httpx.MockTransport(handler)
+    return httpx2.MockTransport(handler)
 
 
 def make_client(transport) -> genai.Client:
     return genai.Client(
         api_key="test-key",
         http_options=types.HttpOptions(
-            httpx_async_client=httpx.AsyncClient(transport=transport),
+            httpx_async_client=httpx2.AsyncClient(transport=transport),
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     )
