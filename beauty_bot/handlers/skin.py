@@ -9,7 +9,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.utils.chat_action import ChatActionSender
 
 from .. import keyboards as kb
-from ..ai.claude import BeautyAI
+from ..ai.gemini import BeautyAI
 from ..catalog import Catalog
 from ..config import Settings
 from ..db import Database

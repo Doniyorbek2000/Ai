@@ -17,10 +17,9 @@ class Settings:
     bot_token: str
     admin_chat_id: int | None
     admin_ids: list[int] = field(default_factory=list)
-    claude_model: str = "claude-opus-5-5"
-    makeup_image_provider: str = ""
-    openai_api_key: str = ""
-    openai_image_model: str = "gpt-image-1"
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_image_model: str = "gemini-3.1-flash-image"
+    makeup_images: bool = True
     daily_ai_limit: int = 15
     bonus_percent: int = 3
     db_path: str = "beauty_bot.db"
@@ -32,15 +31,16 @@ class Settings:
         token = os.getenv("BOT_TOKEN", "").strip()
         if not token:
             raise RuntimeError("BOT_TOKEN o'rnatilmagan (.env faylini tekshiring)")
+        if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
+            raise RuntimeError("GEMINI_API_KEY o'rnatilmagan (.env faylini tekshiring)")
         admin_chat = os.getenv("ADMIN_CHAT_ID", "").strip()
         return cls(
             bot_token=token,
             admin_chat_id=int(admin_chat) if admin_chat else None,
             admin_ids=_int_list(os.getenv("ADMIN_IDS", "")),
-            claude_model=os.getenv("CLAUDE_MODEL", "claude-opus-5-5").strip(),
-            makeup_image_provider=os.getenv("MAKEUP_IMAGE_PROVIDER", "").strip().lower(),
-            openai_api_key=os.getenv("OPENAI_API_KEY", "").strip(),
-            openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1").strip(),
+            gemini_model=os.getenv("GEMINI_MODEL", cls.gemini_model).strip(),
+            gemini_image_model=os.getenv("GEMINI_IMAGE_MODEL", cls.gemini_image_model).strip(),
+            makeup_images=os.getenv("MAKEUP_IMAGES", "1").strip().lower() not in ("0", "false", "no", ""),
             daily_ai_limit=int(os.getenv("DAILY_AI_LIMIT", "15")),
             bonus_percent=int(os.getenv("BONUS_PERCENT", "3")),
             db_path=os.getenv("DB_PATH", "beauty_bot.db"),

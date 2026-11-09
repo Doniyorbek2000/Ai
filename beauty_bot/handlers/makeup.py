@@ -12,7 +12,8 @@ from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from aiogram.utils.chat_action import ChatActionSender
 
 from .. import keyboards as kb
-from ..ai.claude import AIError, BeautyAI
+from ..ai.errors import AIError
+from ..ai.gemini import BeautyAI
 from ..ai.makeup import MakeupImageProvider
 from ..ai.schemas import MakeupPlan
 from ..catalog import Catalog

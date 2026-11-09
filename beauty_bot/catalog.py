@@ -92,7 +92,7 @@ class Catalog:
         return out
 
     def ai_context(self, categories: tuple[str, ...]) -> str:
-        """Claude uchun ixcham katalog (faqat sotuvdagi mahsulotlar)."""
+        """AI uchun ixcham katalog (faqat sotuvdagi mahsulotlar)."""
         rows = []
         for p in self.products:
             if not p.in_stock or p.category not in categories:

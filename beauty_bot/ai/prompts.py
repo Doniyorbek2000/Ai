@@ -1,4 +1,4 @@
-"""Claude uchun tizim ko'rsatmalari."""
+"""AI uchun tizim ko'rsatmalari."""
 
 from __future__ import annotations
 

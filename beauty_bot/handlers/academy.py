@@ -11,7 +11,7 @@ from aiogram.types import Message
 from aiogram.utils.chat_action import ChatActionSender
 
 from .. import keyboards as kb
-from ..ai.claude import BeautyAI
+from ..ai.gemini import BeautyAI
 from ..config import Settings
 from ..db import Database
 from ..texts import t

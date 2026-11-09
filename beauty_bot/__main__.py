@@ -10,8 +10,8 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from .ai.claude import BeautyAI
-from .ai.makeup import make_provider
+from .ai.gemini import BeautyAI
+from .ai.makeup import GeminiImageProvider
 from .catalog import Catalog
 from .config import Settings
 from .db import Database
@@ -46,16 +46,34 @@ def build_dispatcher(db: Database, catalog: Catalog, ai: BeautyAI, settings: Set
     return dp
 
 
+async def check_models(ai: BeautyAI, settings: Settings) -> None:
+    """Model nomlari to'g'riligini tekshiradi (Google model nomlarini vaqti-vaqti bilan yangilaydi)."""
+    try:
+        available = await ai.available_models()
+    except Exception as e:  # tarmoq yoki kalit muammosi: bot baribir ishga tushadi
+        log.warning("Gemini modellar ro'yxatini olib bo'lmadi: %s", e)
+        return
+    wanted = [settings.gemini_model] + ([settings.gemini_image_model] if settings.makeup_images else [])
+    for name in wanted:
+        if name not in available:
+            similar = sorted(m for m in available if m.startswith("gemini") and ("image" in m) == ("image" in name))
+            log.error(
+                "Model %r topilmadi. .env da GEMINI_MODEL / GEMINI_IMAGE_MODEL ni tuzating. Mavjudlari: %s",
+                name, ", ".join(similar[:15]),
+            )
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     settings = Settings.from_env()
     catalog = Catalog.load(settings.catalog_path)
     db = Database(settings.db_path)
     await db.connect()
-    ai = BeautyAI(catalog, model=settings.claude_model)
-    image_provider = make_provider(
-        settings.makeup_image_provider, settings.openai_api_key, settings.openai_image_model
+    ai = BeautyAI(catalog, model=settings.gemini_model)
+    image_provider = (
+        GeminiImageProvider(ai.client, settings.gemini_image_model) if settings.makeup_images else None
     )
+    await check_models(ai, settings)
     log.info(
         "Katalog: %d mahsulot. Makiyaj rasmi: %s",
         len(catalog.products),

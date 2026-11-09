@@ -1,4 +1,4 @@
-"""Claude javoblari uchun tuzilgan (structured) formatlar.
+"""AI javoblari uchun tuzilgan (structured) formatlar.
 
 Field tavsiflari ingliz tilida: ular model uchun, foydalanuvchiga ko'rinmaydi."""
 

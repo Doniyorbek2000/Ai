@@ -24,13 +24,15 @@ Bot uchta tilda ishlaydi: o'zbek (lotin), o'zbek (kirill) va rus.
 
 ## Texnologiyalar
 - Python 3.11+, [aiogram 3](https://docs.aiogram.dev/) (Telegram), SQLite.
-- **Claude** (Anthropic API): teri tahlili, stilist, makiyaj rejasi, atir va Academy. Model `claude-opus-5-5` (`CLAUDE_MODEL` orqali o'zgartiriladi). Javoblar qat'iy JSON formatida keladi. Model so'rovni rad etsa, server avtomatik ravishda boshqa modelda qayta urinadi.
-- **Makiyajli rasm:** Claude rasm chizmaydi, shuning uchun bu ish alohida rasm tahrirlash modeli orqali bajariladi (hozircha OpenAI `gpt-image-1`). Bu qism ixtiyoriy: sozlanmasa, bot faqat matnli makiyaj rejasini yuboradi.
+- **Gemini API** (Google) — bitta kalit hamma ishni bajaradi:
+  - `GEMINI_MODEL` (standart: `gemini-3.5-flash`) — teri tahlili, stilist, makiyaj rejasi, atir va Academy. Javoblar qat'iy JSON formatida keladi.
+  - `GEMINI_IMAGE_MODEL` (standart: `gemini-3.1-flash-image`, "Nano Banana") — rasmga makiyaj qo'yish. `MAKEUP_IMAGES=0` bo'lsa, bot faqat matnli makiyaj rejasini yuboradi.
+- Google model nomlarini vaqti-vaqti bilan yangilab turadi. Bot ishga tushganda modellar mavjudligini tekshiradi. Model topilmasa, logda xato chiqaradi va mavjud modellar ro'yxatini ko'rsatadi: kerakli nomni `.env` ga yozasiz.
 
 ## O'rnatish
 
 1. [@BotFather](https://t.me/BotFather) da bot yarating va tokenni oling.
-2. [console.anthropic.com](https://console.anthropic.com) da Claude API kalitini oling.
+2. [aistudio.google.com/apikey](https://aistudio.google.com/apikey) da Gemini API kalitini oling va loyihada **billing'ni yoqing**. Bepul tarifda yuborilgan ma'lumotlar Google mahsulotlarini yaxshilashda ishlatilishi mumkin. Mijozlarning yuz rasmlari uchun bu yaramaydi, shuning uchun pullik tarif kerak. Shartlarni Google sahifasida tekshiring.
 3. Buyurtmalar uchun Telegram guruh yarating va botni unga qo'shing. Guruh ID sini `ADMIN_CHAT_ID` ga yozing (masalan, `-100...`). Adminlarning Telegram ID larini `ADMIN_IDS` ga yozing: faqat ular buyurtma holatini o'zgartira oladi.
 
 ```bash
@@ -72,7 +74,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Testlar haqiqiy dispatcher orqali to'liq ssenariylarni tekshiradi: start va til tanlash, teri tahlili, makiyaj, atir, Academy, savat, buyurtma, admin va bonuslar. Telegram va AI o'rniga soxta (fake) obyektlar ishlatiladi. Claude so'rovining tuzilishi esa alohida test bilan tekshiriladi.
+Testlar haqiqiy dispatcher orqali to'liq ssenariylarni tekshiradi: start va til tanlash, teri tahlili, makiyaj, atir, Academy, savat, buyurtma, admin va bonuslar. Telegram va AI o'rniga soxta (fake) obyektlar ishlatiladi. Gemini so'rovlarining tuzilishi va bloklangan javoblarni qayta ishlash haqiqiy SDK orqali, soxta HTTP javoblar bilan alohida tekshiriladi.
 
 ## Loyiha tuzilishi
 
@@ -85,10 +87,11 @@ beauty_bot/
   db.py             SQLite: foydalanuvchi, savat, buyurtma, bonus, AI limiti
   render.py         AI natijalarini Telegram matniga aylantirish
   keyboards.py      tugmalar
-  ai/claude.py      Claude so'rovlari
+  ai/gemini.py      Gemini so'rovlari
   ai/prompts.py     AI ko'rsatmalari (xavfsizlik qoidalari shu yerda)
   ai/schemas.py     javob formatlari
-  ai/makeup.py      makiyajli rasm provayderi
+  ai/makeup.py      makiyajli rasm (Gemini Nano Banana)
+  ai/errors.py      AI xatolari
   handlers/         bo'limlar: menu, skin, makeup, look, perfume, academy, shop, club, admin
 data/products.json  katalog
 tests/              testlar

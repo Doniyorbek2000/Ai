@@ -1,12 +1,10 @@
-"""Testlar uchun soxta Claude javoblari va Telegram sessiyasi."""
+"""Testlar uchun soxta AI javoblari va Telegram sessiyasi."""
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Any
 
-import httpx2
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
 from aiogram.methods import GetFile, TelegramMethod
@@ -115,25 +113,3 @@ class FakeSession(BaseSession):
                 if isinstance(val, str):
                     out.append(val)
         return out
-
-
-def claude_transport(payload: dict | str, stop_reason: str = "end_turn", captured: list | None = None):
-    """Claude API ni taqlid qiluvchi httpx2 transport."""
-
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        if captured is not None:
-            captured.append(request)
-        text = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
-        body = {
-            "id": "msg_test",
-            "type": "message",
-            "role": "assistant",
-            "model": "claude-opus-5-5",
-            "content": [] if stop_reason == "refusal" else [{"type": "text", "text": text}],
-            "stop_reason": stop_reason,
-            "stop_sequence": None,
-            "usage": {"input_tokens": 10, "output_tokens": 10},
-        }
-        return httpx2.Response(200, json=body)
-
-    return httpx2.MockTransport(handler)

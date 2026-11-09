@@ -12,7 +12,7 @@ from functools import lru_cache
 LANGS = ("uz", "uz_cyrl", "ru")
 DEFAULT_LANG = "uz"
 
-# Claude javobi qaysi tilda yozilishi kerak
+# AI javobi qaysi tilda yozilishi kerak
 AI_LANGUAGE_NAME = {
     "uz": "Uzbek (Latin script)",
     "uz_cyrl": "Uzbek (Cyrillic script)",

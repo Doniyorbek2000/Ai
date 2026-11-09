@@ -10,7 +10,7 @@ from typing import TypeVar
 from aiogram import Bot
 from aiogram.types import Message
 
-from ..ai.claude import AIError, AIRefused
+from ..ai.errors import AIError, AIRefused
 from ..config import Settings
 from ..db import Database
 from ..render import split_message
@@ -19,7 +19,7 @@ from ..texts import t
 log = logging.getLogger(__name__)
 T = TypeVar("T")
 
-MAX_IMAGE_BYTES = 5 * 1024 * 1024  # Claude API rasm chegarasi
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # Telegram rasmlari odatda ancha kichik; katta fayllar rad etiladi
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
