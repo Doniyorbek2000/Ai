@@ -1,0 +1,6 @@
+aiogram>=3.31,<4
+anthropic>=2.6,<3
+aiosqlite>=0.22
+pydantic>=2.13,<3
+httpx>=0.28
+python-dotenv>=1.0
