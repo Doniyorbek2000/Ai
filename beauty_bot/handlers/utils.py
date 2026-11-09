@@ -53,6 +53,10 @@ async def send_long(message: Message, text: str, **kwargs) -> None:
         await message.answer(chunk, **extra)
 
 
+# Bir foydalanuvchining bir vaqtda faqat bitta AI so'rovi ishlaydi (ikki marta bosish, rasm ketma-ketligi)
+_in_progress: set[int] = set()
+
+
 async def run_ai(
     message: Message,
     db: Database,
@@ -60,22 +64,37 @@ async def run_ai(
     lang: str,
     user_id: int,
     call: Callable[[], Awaitable[T]],
+    event: str | None = None,
 ) -> T | None:
-    """Kunlik limitni tekshiradi, AI ni chaqiradi va xatolarni foydalanuvchiga tushunarli qiladi."""
-    if user_id not in settings.admin_ids:
-        if not await db.try_consume_ai(user_id, settings.daily_ai_limit):
+    """Kunlik limitni tekshiradi, AI ni chaqiradi va xatolarni foydalanuvchiga tushunarli qiladi.
+
+    Muvaffaqiyatli bo'lsa, ``event`` statistikaga yoziladi.
+    """
+    if user_id in _in_progress:
+        await message.answer(t("busy", lang))
+        return None
+    # Band belgisi birinchi await dan oldin qo'yiladi, aks holda ikki so'rov birga o'tib ketadi
+    _in_progress.add(user_id)
+    try:
+        if user_id not in settings.admin_ids and not await db.try_consume_ai(user_id, settings.daily_ai_limit):
             await message.answer(t("limit_reached", lang, limit=settings.daily_ai_limit))
             return None
-    try:
-        return await call()
+        result = await call()
     except AIRefused:
         await db.refund_ai(user_id)
         await message.answer(t("ai_refused", lang))
+        return None
     except AIError:
         await db.refund_ai(user_id)
         await message.answer(t("ai_error", lang))
+        return None
     except Exception:
         log.exception("AI chaqiruvida kutilmagan xato")
         await db.refund_ai(user_id)
         await message.answer(t("ai_error", lang))
-    return None
+        return None
+    finally:
+        _in_progress.discard(user_id)
+    if event:
+        await db.log_event(user_id, event)
+    return result

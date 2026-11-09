@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -105,6 +107,7 @@ async def msg_photo(
                 extra=answers.get("extra"),
                 media_type=media_type,
             ),
+            event="skin",
         )
     if result is None:
         return  # xato xabari yuborilgan; holat saqlanadi, qayta rasm yuborish mumkin
@@ -113,6 +116,9 @@ async def msg_photo(
         return
     await state.clear()
     await send_long(message, render_skin(result, catalog, lang), reply_markup=kb.main_menu(lang))
+    if settings.reminder_days > 0:
+        due = datetime.now(timezone.utc) + timedelta(days=settings.reminder_days)
+        await db.schedule_reminder(message.from_user.id, "skin", due)
     products = catalog.valid_ids(result.product_ids)
     if products:
         await message.answer(render_products(products, lang), reply_markup=kb.products_kb(products, lang))

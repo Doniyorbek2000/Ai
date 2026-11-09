@@ -94,7 +94,7 @@ async def msg_photo(
 
     action = ChatActionSender.upload_photo if image_provider else ChatActionSender.typing
     async with action(bot=bot, chat_id=message.chat.id):
-        result = await run_ai(message, db, settings, lang, message.from_user.id, work)
+        result = await run_ai(message, db, settings, lang, message.from_user.id, work, event="makeup")
     if result is None:
         return
     plan, image = result

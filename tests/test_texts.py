@@ -1,6 +1,15 @@
 import pytest
 
-from beauty_bot.texts import LANGS, OPTIONS, T, all_variants, fmt_price, opt, t, to_cyrillic
+from beauty_bot.texts import (
+    LANGS,
+    OPTIONS,
+    T,
+    all_variants,
+    fmt_price,
+    opt,
+    t,
+    to_cyrillic,
+)
 
 
 @pytest.mark.parametrize(
@@ -38,7 +47,7 @@ def test_every_text_has_uz_and_ru():
 def test_formatting_works_in_all_languages():
     kwargs = dict(name="Dilnoza", limit=10, reason="x", style="y", id=1, bonus=5, amount=3,
                   balance=0, percent=3, orders="-", cart="c", phone="p", address="a",
-                  comment="c", status="s")
+                  comment="c", status="s", payment="p", hours=24, count=2, link="l", days=14)
     for key in T:
         for lang in LANGS:
             assert t(key, lang, **kwargs)

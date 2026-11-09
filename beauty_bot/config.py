@@ -22,6 +22,13 @@ class Settings:
     makeup_images: bool = True
     daily_ai_limit: int = 15
     bonus_percent: int = 3
+    # Onlayn to'lov: BotFather -> Payments orqali olingan Click yoki Payme provider tokeni
+    payment_provider_token: str = ""
+    delivery_fee: int = 25_000
+    free_delivery_from: int = 300_000
+    referral_bonus: int = 20_000
+    reminder_days: int = 14
+    payment_ttl_hours: int = 24
     db_path: str = "beauty_bot.db"
     catalog_path: str = "data/products.json"
 
@@ -43,6 +50,12 @@ class Settings:
             makeup_images=os.getenv("MAKEUP_IMAGES", "1").strip().lower() not in ("0", "false", "no", ""),
             daily_ai_limit=int(os.getenv("DAILY_AI_LIMIT", "15")),
             bonus_percent=int(os.getenv("BONUS_PERCENT", "3")),
+            payment_provider_token=os.getenv("PAYMENT_PROVIDER_TOKEN", "").strip(),
+            delivery_fee=int(os.getenv("DELIVERY_FEE", "25000")),
+            free_delivery_from=int(os.getenv("FREE_DELIVERY_FROM", "300000")),
+            referral_bonus=int(os.getenv("REFERRAL_BONUS", "20000")),
+            reminder_days=int(os.getenv("REMINDER_DAYS", "14")),
+            payment_ttl_hours=int(os.getenv("PAYMENT_TTL_HOURS", "24")),
             db_path=os.getenv("DB_PATH", "beauty_bot.db"),
             catalog_path=os.getenv("CATALOG_PATH", "data/products.json"),
         )

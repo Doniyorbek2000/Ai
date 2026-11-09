@@ -7,10 +7,18 @@ from typing import Any
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import GetFile, TelegramMethod
-from aiogram.types import Chat, File, Message
+from aiogram.methods import GetFile, GetMe, TelegramMethod
+from aiogram.types import Chat, File, Message, User
 
-from beauty_bot.ai.schemas import LookProfile, MakeupPlan, Observation, PerfumePick, PerfumePicks, RoutineStep, SkinAnalysis
+from beauty_bot.ai.schemas import (
+    LookProfile,
+    MakeupPlan,
+    Observation,
+    PerfumePick,
+    PerfumePicks,
+    RoutineStep,
+    SkinAnalysis,
+)
 
 
 def skin_result(**overrides) -> SkinAnalysis:
@@ -85,6 +93,8 @@ class FakeSession(BaseSession):
 
     async def make_request(self, bot: Bot, method: TelegramMethod, timeout: int | None = None) -> Any:
         self.requests.append(method)
+        if isinstance(method, GetMe):
+            return User(id=42, is_bot=True, first_name="AI Beauty", username="ai_beauty_bot")
         if isinstance(method, GetFile):
             return File(file_id=method.file_id, file_unique_id="u", file_path="photos/face.jpg", file_size=10)
         returning = getattr(method, "__returning__", None)

@@ -50,6 +50,7 @@ async def msg_photo(
         result = await run_ai(
             message, db, settings, lang, message.from_user.id,
             lambda: ai.ideal_look(data, lang, media_type),
+            event="look",
         )
     if result is None:
         return

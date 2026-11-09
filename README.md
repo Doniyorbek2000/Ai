@@ -12,15 +12,19 @@ Bot uchta tilda ishlaydi: o'zbek (lotin), o'zbek (kirill) va rus.
 | ✨ **Ideal obraz** | Yuz shakli, teri ohangi, rang tipi, yarashadigan ranglar, qosh, soch va makiyaj bo'yicha maslahat beradi. |
 | 🌸 **Atir tanlash** | 5 ta savoldan keyin katalogdan 1–3 ta atirni tushuntirish bilan taklif qiladi. |
 | 🎬 **Reels va maslahat** (Beauty Academy) | Professional vizajist kabi suhbatlashadi: Reels uchun makiyaj, yorug'lik, burchak va kadrni baholash. |
-| 🛍 **Do'kon** | Katalog, savat va buyurtma berish (telefon, manzil yoki lokatsiya, izoh). Buyurtma admin guruhiga tugmalar bilan keladi. |
-| 💎 **Beauty Club** | Har bir xariddan bonus beriladi. Bonus buyurtma yetkazilgandan keyin hisoblanadi va keyingi xaridda ishlatiladi. |
+| 🛍 **Do'kon** | Katalog, savat va buyurtma berish (telefon, manzil yoki lokatsiya, izoh). Yetkazib berish narxi hisoblanadi, ma'lum summadan boshlab bepul. To'lov **Click / Payme** orqali onlayn yoki kuryerga. Buyurtma admin guruhiga tugmalar bilan keladi. |
+| 💎 **Beauty Club** | Har bir xariddan bonus beriladi: bonus buyurtma yetkazilgandan keyin hisoblanadi va keyingi xaridda ishlatiladi. Bundan tashqari, shaxsiy taklif havolasi bor: dugona birinchi xaridini olganda taklif qilganga bonus beriladi. |
+| 🔔 **Eslatma** | Teri tahlilidan 14 kun o'tgach bot "teringiz qanday?" deb yozadi va qayta tahlilga taklif qiladi. Bu mijozni qaytaradi va yangi sotuvga olib keladi. |
+| 📊 **Admin panel** | Bot ichida: statistika, narx o'zgartirish, mahsulotni sotuvdan olish, hammaga xabar yuborish, blogerlar samaradorligi. |
 
 ### Xavfsizlik va qonuniylik
 - **AI tashxis qo'ymaydi va dori yozmaydi.** U faqat kosmetik vositalarni (niatsinamid, salitsil kislotasi, SPF va hokazo) tavsiya qiladi. Retsept bilan beriladigan dorilar (antibiotik, gormonal, izotretinoin) taqiqlangan. Xavfli belgilar bo'lsa (xolning o'zgarishi, shish, infeksiya), shifokorga darhol murojaat qilish so'raladi. Har bir natija ostida "bu tibbiy tashxis emas" degan ogohlantirish bor.
 - 18 yoshgacha bo'lganlar, homiladorlar va emizikli onalarga retinol va kuchli kislotalar tavsiya qilinmaydi.
 - **Yuz rasmlari saqlanmaydi.** Birinchi rasmdan oldin rozilik so'raladi. `/delete_me` buyrug'i foydalanuvchining barcha ma'lumotlarini o'chiradi.
 - AI faqat katalogdagi mahsulotlarni tavsiya qila oladi. Katalogda yo'q ID lar avtomatik tashlab yuboriladi.
-- Har bir foydalanuvchi uchun kunlik AI so'rovlar limiti bor (`DAILY_AI_LIMIT`), bu xarajatni nazorat qiladi.
+- Har bir foydalanuvchi uchun kunlik AI so'rovlar limiti bor (`DAILY_AI_LIMIT`), bu xarajatni nazorat qiladi. Bir vaqtda faqat bitta AI so'rovi ishlaydi. Albom bo'lib kelgan rasmlardan faqat birinchisi tahlil qilinadi. Spam (juda ko'p xabar) avtomatik e'tiborsiz qoldiriladi.
+- To'lovda karta ma'lumotlari Click/Payme tomonida qoladi. Bot har bir to'lovdan oldin buyurtma summasi va egasini tekshiradi. To'lanmagan buyurtma 24 soatdan keyin bekor qilinadi va ishlatilgan bonus qaytariladi.
+- Bot qayta ishga tushsa ham foydalanuvchining qaysi qadamda turgani (FSM) bazada saqlanib qoladi. Kutilmagan xatolar logga yoziladi, foydalanuvchiga esa tushunarli xabar boradi.
 
 ## Texnologiyalar
 - Python 3.11+, [aiogram 3](https://docs.aiogram.dev/) (Telegram), SQLite.
@@ -43,12 +47,24 @@ cp .env.example .env               # .env ichini to'ldiring
 python -m beauty_bot
 ```
 
-Docker orqali ishga tushirish:
+Serverda Docker orqali ishga tushirish (tavsiya etiladi; bot qulasa ham avtomatik qayta yonadi):
 
 ```bash
-docker build -t ai-beauty-bot .
-docker run -d --env-file .env -v $(pwd)/data:/app/data -v beauty-db:/app/db -e DB_PATH=/app/db/beauty_bot.db ai-beauty-bot
+docker compose up -d --build
+docker compose logs -f bot      # loglarni ko'rish
 ```
+
+Ma'lumotlar bazasi `beauty-db` nomli Docker volume'da saqlanadi. Undan muntazam zaxira nusxa oling.
+
+### Onlayn to'lovni ulash (Click / Payme)
+1. Click yoki Payme bilan merchant shartnoma tuzing (bu kod bilan bo'lmaydi).
+2. @BotFather → `/mybots` → botingiz → **Payments** → Click yoki Payme ni tanlang va token oling.
+3. Tokenni `.env` ichidagi `PAYMENT_PROVIDER_TOKEN=` qatoriga yozing. Bo'sh qolsa, faqat kuryerga to'lov ishlaydi.
+
+Avval provayderning **test** tokeni bilan sinab ko'ring.
+
+### Blogerlar va reklama havolalari
+Har bir bloger yoki reklamaga alohida havola bering: `https://t.me/BOTINGIZ?start=aziza`. Qaysi manbadan qancha yangi mijoz kelgani `/stats` buyrug'ida ko'rinadi. Dugonani taklif qilish havolasi (`?start=ref_...`) har bir mijozga "Beauty Club" bo'limida avtomatik beriladi.
 
 ## Katalogni to'ldirish
 
@@ -64,17 +80,31 @@ docker run -d --env-file .env -v $(pwd)/data:/app/data -v beauty-db:/app/db -e D
 Kirill yozuvi lotin matnidan avtomatik yasaladi.
 
 ## Admin buyruqlari
-- Yangi buyurtma admin guruhiga keladi. Ostidagi tugmalar: ✅ Tasdiqlash / 📦 Yetkazildi / ❌ Bekor. Mijozga holat haqida avtomatik xabar boradi.
-- `/orders [new|confirmed|delivered|cancelled]` — buyurtmalar ro'yxati.
+Bu buyruqlar faqat `ADMIN_IDS` dagi odamlar uchun ishlaydi, boshqalar uchun bot jim turadi.
+
+| Buyruq | Nima qiladi |
+|---|---|
+| (tugmalar) | Yangi buyurtma admin guruhiga ✅ Tasdiqlash / 📦 Yetkazildi / ❌ Bekor tugmalari bilan keladi. Mijozga holat haqida avtomatik xabar boradi. |
+| `/admin` | Buyruqlar ro'yxati |
+| `/orders [new\|confirmed\|delivered\|cancelled\|awaiting_payment]` | Buyurtmalar ro'yxati |
+| `/stats [kunlar]` | Statistika: foydalanuvchilar, tushum, AI dan xaridga konversiya, eng ko'p sotilgan AI tavsiyalari, bloger manbalari |
+| `/products [kategoriya]` | Mahsulotlar, narx va mavjudlik |
+| `/price sk-spf50 145000` | Narxni o'zgartirish (darhol, faylni tahrirlamasdan) |
+| `/stock sk-spf50 off` / `on` | Sotuvdan olish yoki qaytarish. AI ham bu mahsulotni tavsiya qilmaydi |
+| `/reload` | `data/products.json` ni qayta o'qish (botni to'xtatmasdan) |
+| `/broadcast` | Chatga xabar (matn, rasm yoki video) yozing, so'ng unga **javob (reply)** qilib `/broadcast` deb yozing. Tasdiqlagandan keyin xabar hammaga yuboriladi |
 
 ## Testlar
 
 ```bash
 pip install -r requirements-dev.txt
+ruff check beauty_bot tests
 pytest
 ```
 
-Testlar haqiqiy dispatcher orqali to'liq ssenariylarni tekshiradi: start va til tanlash, teri tahlili, makiyaj, atir, Academy, savat, buyurtma, admin va bonuslar. Telegram va AI o'rniga soxta (fake) obyektlar ishlatiladi. Gemini so'rovlarining tuzilishi va bloklangan javoblarni qayta ishlash haqiqiy SDK orqali, soxta HTTP javoblar bilan alohida tekshiriladi.
+GitHub'ga har safar push qilinganda testlar avtomatik ishlaydi (`.github/workflows/tests.yml`).
+
+61 ta test haqiqiy dispatcher orqali to'liq ssenariylarni tekshiradi: start va til tanlash, teri tahlili, makiyaj, atir, Academy, savat, buyurtma, Click/Payme to'lovi, referal, eslatmalar, admin panel, bot qayta ishga tushgandan keyin holat saqlanishi va spamdan himoya. Telegram va AI o'rniga soxta (fake) obyektlar ishlatiladi. Gemini so'rovlarining tuzilishi va bloklangan javoblarni qayta ishlash haqiqiy SDK orqali, soxta HTTP javoblar bilan alohida tekshiriladi.
 
 ## Loyiha tuzilishi
 
@@ -84,7 +114,10 @@ beauty_bot/
   config.py         .env sozlamalari
   texts.py          3 tildagi matnlar va lotin→kirill transliteratsiya
   catalog.py        mahsulot katalogi
-  db.py             SQLite: foydalanuvchi, savat, buyurtma, bonus, AI limiti
+  db.py             SQLite: foydalanuvchi, savat, buyurtma, bonus, AI limiti, statistika, eslatmalar
+  storage.py        FSM holatini bazada saqlash
+  middlewares.py    til, spamdan himoya, albomlar
+  scheduler.py      fon vazifalari: eslatmalar, to'lanmagan buyurtmalar
   render.py         AI natijalarini Telegram matniga aylantirish
   keyboards.py      tugmalar
   ai/gemini.py      Gemini so'rovlari
@@ -97,8 +130,12 @@ data/products.json  katalog
 tests/              testlar
 ```
 
-## Keyingi qadamlar
-- Haqiqiy katalog, narxlar va mahsulot rasmlari.
-- Click / Payme orqali onlayn to'lov (hozir to'lov kuryerga naqd yoki karta orqali).
-- Dermatolog bilan hamkorlikda pullik onlayn konsultatsiya tugmasi.
-- Statistika: qaysi tavsiyalar sotuvga aylanmoqda.
+## Ishga tushirishdan oldin (kod bilan bo'lmaydigan ishlar)
+- **Katalog:** haqiqiy mahsulotlar, narxlar, rasmlar va har biriga to'g'ri teglar (teri turi, muammo, tarkib, ehtiyot choralari).
+- **Click / Payme bilan shartnoma** va BotFather'dan to'lov tokeni.
+- **Gemini'da billing'ni yoqish** (pullik tarif).
+- **Yuristga ko'rsatish:** maxfiylik siyosati, ommaviy oferta, shaxsiy ma'lumotlar qonuni. O'zbekistonda fuqarolarning shaxsiy ma'lumotlarini mamlakat ichidagi serverda saqlash talabi bor, shuning uchun serverni shunga qarab tanlang.
+- **Mahsulot sertifikatlari** va originalligini tasdiqlovchi hujjatlar.
+- **Dermatolog hamkor:** "shifokorga murojaat qiling" degan joyda aniq kontakt bo'lishi yaxshi.
+- **Sinov:** 20–30 ta haqiqiy rasm bilan AI javoblarini tekshirish va promptlarni sozlash.
+- **Bot ko'rinishi:** avatar, tavsif va BotFather'dagi "About" matni.

@@ -92,6 +92,7 @@ async def cb_budget(
                 season=answers.get("season"),
                 budget=code,
             ),
+            event="perfume",
         )
     if result is None:
         return

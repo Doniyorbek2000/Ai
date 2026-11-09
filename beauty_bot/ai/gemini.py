@@ -86,12 +86,10 @@ class BeautyAI:
         self.model = model
         # Kalit GEMINI_API_KEY muhit o'zgaruvchisidan o'qiladi
         self.client = client or genai.Client()
-        self._system_cache: dict[tuple[str, ...], str] = {}
 
     def _system(self, task: str, categories: tuple[str, ...]) -> str:
-        if categories not in self._system_cache:
-            self._system_cache[categories] = prompts.BASE_SYSTEM + self.catalog.ai_context(categories)
-        return f"{self._system_cache[categories]}\n\n{task}"
+        # Har safar yangidan: admin narx yoki mavjudlikni o'zgartirsa, AI darhol yangisini ko'radi
+        return f"{prompts.BASE_SYSTEM}{self.catalog.ai_context(categories)}\n\n{task}"
 
     async def _parse(
         self,

@@ -14,6 +14,7 @@ from aiogram.types import CallbackQuery, Chat, Contact, Message, PhotoSize, Upda
 
 from beauty_bot.__main__ import build_dispatcher
 from beauty_bot.config import Settings
+from beauty_bot.middlewares import ThrottleMiddleware
 from beauty_bot.texts import t
 
 from .fakes import FakeAI, FakeImageProvider, FakeSession
@@ -25,14 +26,16 @@ _ids = itertools.count(1)
 
 
 class Harness:
-    def __init__(self, db, catalog, limit=15, image_provider=None):
+    def __init__(self, db, catalog, limit=15, image_provider=None, **settings_kw):
         self.session = FakeSession()
         self.bot = Bot("42:TEST", session=self.session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         self.ai = FakeAI()
         self.db = db
+        self.catalog = catalog
         self.settings = Settings(bot_token="42:TEST", admin_chat_id=ADMIN_CHAT, admin_ids=[ADMIN.id],
-                                 daily_ai_limit=limit)
-        self.dp = build_dispatcher(db, catalog, self.ai, self.settings, image_provider)
+                                 daily_ai_limit=limit, **settings_kw)
+        self.dp = build_dispatcher(db, catalog, self.ai, self.settings, image_provider,
+                                   throttle=ThrottleMiddleware(limit=10_000))
 
     def _msg(self, user=USER, **kw) -> Message:
         return Message(message_id=next(_ids), date=datetime.now(), chat=Chat(id=user.id, type="private"),
@@ -61,7 +64,16 @@ class Harness:
 def detach_routers():
     """Routerlar modul darajasida yaratiladi; har bir test yangi dispatcherga ulaydi."""
     yield
-    from beauty_bot.handlers import academy, admin, look, makeup, menu, perfume, shop, skin
+    from beauty_bot.handlers import (
+        academy,
+        admin,
+        look,
+        makeup,
+        menu,
+        perfume,
+        shop,
+        skin,
+    )
 
     for module in (academy, admin, look, makeup, menu, perfume, shop, skin):
         module.router._parent_router = None
@@ -108,7 +120,7 @@ async def test_skin_flow_with_consent(h):
     assert "Teri tahlili natijasi" in out and "tibbiy tashxis emas" in out
     buttons = [b.callback_data for m in s.sent(SendMessage) if m.reply_markup and hasattr(m.reply_markup, "inline_keyboard")
                for row in m.reply_markup.inline_keyboard for b in row]
-    assert "add:sk-cleanser-gel" in buttons and "add:made-up-id" not in buttons
+    assert "add:sk-cleanser-gel:ai" in buttons and not any("made-up-id" in b for b in buttons)
 
     # Ikkinchi marta rozilik so'ralmaydi
     s = await h.text(t("btn_skin", "uz"))
@@ -166,7 +178,9 @@ async def test_shop_checkout_admin_and_bonus(h):
     assert "Bonus ishlatildi" in joined(s)
     await h.click("order:confirm")
     order = await h.db.get_order(2)
-    assert order.bonus_used == 10890 and order.total == 85000 - 10890
+    # 300 000 dan kam: yetkazib berish 25 000 so'm; bonus faqat mahsulotga ishlatiladi
+    assert order.bonus_used == 10890 and order.delivery_fee == 25000
+    assert order.total == 85000 - 10890 + 25000
     assert order.comment == "Kechqurun olib keling"
 
 

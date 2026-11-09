@@ -178,6 +178,7 @@ T: dict[str, dict[str, str]] = {
             "🔒 <b>Maxfiylik</b>\n\n"
             "• Yuz rasmlari saqlanmaydi, faqat tahlil vaqtida AI xizmatiga yuboriladi.\n"
             "• Biz faqat tilingiz, savatingiz, buyurtmalaringiz va bonuslaringizni saqlaymiz.\n"
+            "• Onlayn to'lovda karta ma'lumotlari Click/Payme tomonida qayta ishlanadi, bizga kelmaydi.\n"
             "• /delete_me — barcha ma'lumotlaringizni o'chirish.\n\n"
             "Tilni o'zgartirish uchun quyidagi tugmani bosing."
         ),
@@ -185,6 +186,7 @@ T: dict[str, dict[str, str]] = {
             "🔒 <b>Конфиденциальность</b>\n\n"
             "• Фото лица не сохраняются, они передаются AI-сервису только на время анализа.\n"
             "• Мы храним только язык, корзину, заказы и бонусы.\n"
+            "• При онлайн-оплате данные карты обрабатывает Click/Payme, к нам они не попадают.\n"
             "• /delete_me — удалить все ваши данные.\n\n"
             "Чтобы сменить язык, нажмите кнопку ниже."
         ),
@@ -387,8 +389,8 @@ T: dict[str, dict[str, str]] = {
     },
     "ask_comment": {"uz": "Izoh (ixtiyoriy):", "ru": "Комментарий (необязательно):"},
     "confirm_order": {
-        "uz": "{cart}\n\n📞 {phone}\n📍 {address}\n💬 {comment}\n\nTo'lov: kuryerga naqd yoki karta orqali.\nTasdiqlaysizmi?",
-        "ru": "{cart}\n\n📞 {phone}\n📍 {address}\n💬 {comment}\n\nОплата: курьеру наличными или картой.\nПодтверждаете?",
+        "uz": "{cart}\n\n📞 {phone}\n📍 {address}\n💬 {comment}\n\n{payment}\nTasdiqlaysizmi?",
+        "ru": "{cart}\n\n📞 {phone}\n📍 {address}\n💬 {comment}\n\n{payment}\nПодтверждаете?",
     },
     "btn_confirm": {"uz": "✅ Tasdiqlash", "ru": "✅ Подтвердить"},
     "order_placed": {
@@ -421,6 +423,63 @@ T: dict[str, dict[str, str]] = {
         "uz": "📦 Buyurtma №{id} holati: <b>{status}</b>",
         "ru": "📦 Статус заказа №{id}: <b>{status}</b>",
     },
+    # --- Umumiy xatolar va navbat ---
+    "error_generic": {
+        "uz": "😔 Kutilmagan xatolik yuz berdi. Iltimos, qayta urinib ko'ring yoki /menu bosing.",
+        "ru": "😔 Произошла непредвиденная ошибка. Попробуйте ещё раз или нажмите /menu.",
+    },
+    "busy": {
+        "uz": "⏳ Oldingi so'rovingiz hali tayyorlanmoqda, biroz kuting.",
+        "ru": "⏳ Предыдущий запрос ещё обрабатывается, подождите немного.",
+    },
+    # --- Yetkazib berish va to'lov ---
+    "delivery": {"uz": "🚚 Yetkazib berish", "ru": "🚚 Доставка"},
+    "delivery_free": {"uz": "bepul", "ru": "бесплатно"},
+    "free_delivery_hint": {
+        "uz": "💡 {amount} dan ortiq xaridda yetkazib berish bepul.",
+        "ru": "💡 При заказе от {amount} доставка бесплатная.",
+    },
+    "choose_payment": {"uz": "To'lov usulini tanlang:", "ru": "Выберите способ оплаты:"},
+    "btn_pay_online": {"uz": "💳 Onlayn: Click / Payme", "ru": "💳 Онлайн: Click / Payme"},
+    "btn_pay_cash": {"uz": "💵 Kuryerga (naqd yoki karta)", "ru": "💵 Курьеру (наличные или карта)"},
+    "payment_cash_note": {"uz": "To'lov: kuryerga naqd yoki karta orqali.", "ru": "Оплата: курьеру наличными или картой."},
+    "invoice_title": {"uz": "AI Beauty buyurtma №{id}", "ru": "Заказ AI Beauty №{id}"},
+    "invoice_description": {
+        "uz": "{count} ta mahsulot, yetkazib berish bilan. Buyurtma to'lovdan keyin tasdiqlanadi.",
+        "ru": "{count} товар(ов), с доставкой. Заказ подтверждается после оплаты.",
+    },
+    "invoice_sent": {
+        "uz": "💳 Quyidagi tugma orqali to'lang. To'lov {hours} soat ichida qilinmasa, buyurtma bekor qilinadi.",
+        "ru": "💳 Оплатите кнопкой ниже. Если оплата не поступит в течение {hours} ч, заказ будет отменён.",
+    },
+    "payment_received": {
+        "uz": "✅ To'lov qabul qilindi! Buyurtma №{id} rasmiylashtirildi, menejerimiz tez orada bog'lanadi.\nYetkazilgandan so'ng {bonus} so'm bonus olasiz 💎",
+        "ru": "✅ Оплата получена! Заказ №{id} оформлен, менеджер скоро свяжется с вами.\nПосле доставки вы получите {bonus} сум бонусов 💎",
+    },
+    "payment_problem": {
+        "uz": "Bu buyurtmani to'lab bo'lmaydi: u bekor qilingan yoki allaqachon to'langan. Savatdan qaytadan buyurtma bering.",
+        "ru": "Этот заказ нельзя оплатить: он отменён или уже оплачен. Оформите заказ заново из корзины.",
+    },
+    "order_expired": {
+        "uz": "⌛️ Buyurtma №{id} to'lanmagani uchun bekor qilindi. Mahsulotlar savatingizda qoldi.",
+        "ru": "⌛️ Заказ №{id} отменён, так как не был оплачен. Товары остались в корзине.",
+    },
+    "status_awaiting_payment": {"uz": "to'lov kutilmoqda", "ru": "ожидает оплаты"},
+    # --- Taklif (referal) ---
+    "invite": {
+        "uz": "👭 <b>Dugonangizni taklif qiling!</b>\nShu havolani yuboring:\n{link}\n\nU birinchi xaridini olganda sizga {bonus} so'm bonus beriladi. Taklif qilganlaringiz: {count}",
+        "ru": "👭 <b>Пригласите подругу!</b>\nОтправьте ей ссылку:\n{link}\n\nКогда она получит первый заказ, вам начислим {bonus} сум бонусов. Приглашено: {count}",
+    },
+    "referral_reward": {
+        "uz": "🎁 Siz taklif qilgan dugonangiz birinchi xaridini oldi! Sizga {bonus} so'm bonus berildi.",
+        "ru": "🎁 Ваша подруга получила первый заказ! Вам начислено {bonus} сум бонусов.",
+    },
+    # --- Eslatma ---
+    "reminder_skin": {
+        "uz": "🌸 Salom! {days} kun oldin teringizni tahlil qilgan edik. Parvarish qanday ketyapti?\n\nYangi rasm yuborsangiz, o'zgarishlarni ko'rib, rejani yangilab beraman.",
+        "ru": "🌸 Здравствуйте! {days} дней назад мы анализировали вашу кожу. Как проходит уход?\n\nОтправьте новое фото — я оценю изменения и обновлю план.",
+    },
+    "btn_reanalyze": {"uz": "🔬 Qayta tahlil qilish", "ru": "🔬 Повторный анализ"},
 }
 
 # Tanlov variantlari: kod -> matn

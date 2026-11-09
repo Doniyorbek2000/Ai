@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .texts import fmt_price, norm_lang, to_cyrillic
@@ -67,6 +67,27 @@ class Catalog:
         if len(ids) != len(set(ids)):
             raise ValueError("Katalogda takroriy mahsulot ID lari bor")
         return cls(categories=raw["categories"], products=products)
+
+    def update(self, product_id: str, **changes: object) -> Product | None:
+        """Mahsulot narxi yoki mavjudligini joyida o'zgartiradi (admin buyruqlari uchun)."""
+        old = self._by_id.get(product_id)
+        if old is None:
+            return None
+        new = replace(old, **changes)
+        self.products[self.products.index(old)] = new
+        self._by_id[product_id] = new
+        return new
+
+    def apply_overrides(self, overrides: dict[str, dict]) -> None:
+        for product_id, changes in overrides.items():
+            if changes:
+                self.update(product_id, **changes)
+
+    def reload_from(self, other: "Catalog") -> None:
+        """Fayldan qayta o'qilgan katalogni joriy obyektga ko'chiradi (havolalar o'zgarmaydi)."""
+        self.categories = other.categories
+        self.products = other.products
+        self._by_id = {p.id: p for p in self.products}
 
     def get(self, product_id: str) -> Product | None:
         return self._by_id.get(product_id)

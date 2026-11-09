@@ -70,7 +70,7 @@ def cancel_kb(lang: str) -> InlineKeyboardMarkup:
 def products_kb(products: list[Product], lang: str, with_cart: bool = True) -> InlineKeyboardMarkup:
     """Tavsiya qilingan mahsulotlar: har biri savatga qo'shish tugmasi bilan."""
     rows = [
-        [InlineKeyboardButton(text=f"🧺 {p.title(lang)}"[:60], callback_data=f"add:{p.id}")]
+        [InlineKeyboardButton(text=f"🧺 {p.title(lang)}"[:60], callback_data=f"add:{p.id}:ai")]
         for p in products
     ]
     if with_cart:
@@ -156,6 +156,14 @@ def confirm_kb(lang: str) -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=t("btn_confirm", lang), callback_data="order:confirm"),
         InlineKeyboardButton(text=t("btn_cancel", lang), callback_data="cancel"),
     ]])
+
+
+def payment_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t("btn_pay_online", lang), callback_data="order:online")],
+        [InlineKeyboardButton(text=t("btn_pay_cash", lang), callback_data="order:confirm")],
+        [InlineKeyboardButton(text=t("btn_cancel", lang), callback_data="cancel")],
+    ])
 
 
 def admin_order_kb(order_id: int) -> InlineKeyboardMarkup:

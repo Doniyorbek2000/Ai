@@ -73,6 +73,7 @@ async def msg_chat(
                 photo=photo[0] if photo else None,
                 media_type=photo[1] if photo else "image/jpeg",
             ),
+            event="academy",
         )
     if reply is None:
         return

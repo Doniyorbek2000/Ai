@@ -1,21 +1,22 @@
-"""🛍 Do'kon: katalog, savat va buyurtma berish."""
+"""🛍 Do'kon: katalog, savat, buyurtma berish va to'lov (kuryerga yoki Click/Payme orqali)."""
 
 from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from html import escape
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 
 from .. import keyboards as kb
-from ..catalog import Catalog
+from ..catalog import Catalog, Product
 from ..config import Settings
-from ..db import Database, Order
+from ..db import Database, Order, calc_delivery
 from ..render import cart_lines, render_cart, render_product_card
 from ..texts import fmt_price, t
 
@@ -23,6 +24,8 @@ log = logging.getLogger(__name__)
 router = Router(name="shop")
 
 PHONE_RE = re.compile(r"^\+?998\d{9}$")
+CURRENCY = "UZS"
+CURRENCY_EXP = 100  # Telegram UZS summasini tiyinda kutadi (2 xona)
 
 
 class CheckoutStates(StatesGroup):
@@ -40,6 +43,42 @@ def normalize_phone(raw: str) -> str | None:
     if len(digits) == 9:  # 901234567
         digits = "998" + digits
     return "+" + digits if PHONE_RE.match(digits) else None
+
+
+def _money(amount: int) -> str:
+    return f"{amount:,}".replace(",", " ")
+
+
+@dataclass(frozen=True)
+class Totals:
+    subtotal: int
+    bonus_used: int
+    delivery: int
+
+    @property
+    def total(self) -> int:
+        return self.subtotal - self.bonus_used + self.delivery
+
+
+def checkout_totals(lines: list[tuple[Product, int]], bonus_balance: int, use_bonus: bool, settings: Settings) -> Totals:
+    subtotal = sum(p.price * q for p, q in lines)
+    bonus_used = min(bonus_balance, subtotal) if use_bonus else 0
+    delivery = calc_delivery(subtotal, settings.delivery_fee, settings.free_delivery_from)
+    return Totals(subtotal, bonus_used, delivery)
+
+
+def render_totals(cart_text: str, totals: Totals, lang: str) -> str:
+    parts = [cart_text]
+    if totals.bonus_used:
+        parts.append(t("use_bonus", lang, amount=_money(totals.bonus_used)))
+    delivery = fmt_price(totals.delivery, lang) if totals.delivery else t("delivery_free", lang)
+    parts.append(f"{t('delivery', lang)}: {delivery}")
+    parts.append(f"<b>{t('total', lang)}: {fmt_price(totals.total, lang)}</b>")
+    return "\n".join(parts)
+
+
+def online_payment_enabled(settings: Settings) -> bool:
+    return bool(settings.payment_provider_token)
 
 
 # --- Katalog -------------------------------------------------------------
@@ -95,18 +134,32 @@ async def _edit_or_send(callback: CallbackQuery, text: str, markup) -> None:
 
 @router.callback_query(F.data.startswith("add:"))
 async def cb_add(callback: CallbackQuery, db: Database, catalog: Catalog, lang: str) -> None:
-    p = catalog.get(callback.data.split(":", 1)[1])
+    parts = callback.data.split(":")
+    p = catalog.get(parts[1])
     if p is None or not p.in_stock:
         await callback.answer(t("out_of_stock", lang), show_alert=True)
         return
     await db.ensure_user(callback.from_user.id, callback.from_user.full_name)
     await db.cart_add(callback.from_user.id, p.id, 1)
+    # AI tavsiyasidan qo'shilganmi yoki katalogdanmi: konversiyani o'lchash uchun
+    from_ai = len(parts) > 2 and parts[2] == "ai"
+    await db.log_event(callback.from_user.id, "add_ai" if from_ai else "add_shop", p.id)
     await callback.answer(f"{t('added', lang)}: {p.title(lang)}")
 
 
-async def show_cart(message: Message, db: Database, catalog: Catalog, lang: str, user_id: int, edit: bool = False) -> None:
+async def show_cart(
+    message: Message,
+    db: Database,
+    catalog: Catalog,
+    lang: str,
+    user_id: int,
+    edit: bool = False,
+    settings: Settings | None = None,
+) -> None:
     lines = cart_lines(await db.cart_items(user_id), catalog)
-    text, _ = render_cart(lines, lang)
+    text, subtotal = render_cart(lines, lang)
+    if lines and settings and settings.free_delivery_from and subtotal < settings.free_delivery_from:
+        text += "\n\n" + t("free_delivery_hint", lang, amount=fmt_price(settings.free_delivery_from, lang))
     markup = kb.cart_kb(lines, lang) if lines else None
     if edit:
         try:
@@ -118,17 +171,17 @@ async def show_cart(message: Message, db: Database, catalog: Catalog, lang: str,
 
 
 @router.callback_query(F.data == "cart")
-async def cb_cart(callback: CallbackQuery, db: Database, catalog: Catalog, lang: str) -> None:
+async def cb_cart(callback: CallbackQuery, db: Database, catalog: Catalog, settings: Settings, lang: str) -> None:
     await callback.answer()
-    await show_cart(callback.message, db, catalog, lang, callback.from_user.id)
+    await show_cart(callback.message, db, catalog, lang, callback.from_user.id, settings=settings)
 
 
 @router.callback_query(F.data.startswith("inc:") | F.data.startswith("dec:"))
-async def cb_qty(callback: CallbackQuery, db: Database, catalog: Catalog, lang: str) -> None:
+async def cb_qty(callback: CallbackQuery, db: Database, catalog: Catalog, settings: Settings, lang: str) -> None:
     op, pid = callback.data.split(":", 1)
     await db.cart_add(callback.from_user.id, pid, 1 if op == "inc" else -1)
     await callback.answer()
-    await show_cart(callback.message, db, catalog, lang, callback.from_user.id, edit=True)
+    await show_cart(callback.message, db, catalog, lang, callback.from_user.id, edit=True, settings=settings)
 
 
 @router.callback_query(F.data == "clear")
@@ -178,60 +231,66 @@ async def msg_address(message: Message, state: FSMContext, lang: str) -> None:
     await message.answer("👇", reply_markup=kb.skip_kb(lang))
 
 
-async def _after_comment(message: Message, state: FSMContext, db: Database, catalog: Catalog, lang: str, user_id: int) -> None:
+async def _after_comment(message: Message, state: FSMContext, db: Database, catalog: Catalog,
+                         settings: Settings, lang: str, user_id: int) -> None:
     balance = await db.get_bonus(user_id)
     if balance > 0:
         await state.set_state(CheckoutStates.bonus)
         await message.answer("💎", reply_markup=kb.bonus_kb(balance, lang))
         return
     await state.update_data(use_bonus=False)
-    await _show_confirm(message, state, db, catalog, lang, user_id)
+    await _show_confirm(message, state, db, catalog, settings, lang, user_id)
 
 
 @router.message(CheckoutStates.comment, F.text)
-async def msg_comment(message: Message, state: FSMContext, db: Database, catalog: Catalog, lang: str) -> None:
+async def msg_comment(message: Message, state: FSMContext, db: Database, catalog: Catalog,
+                      settings: Settings, lang: str) -> None:
     await state.update_data(comment=message.text.strip()[:500])
-    await _after_comment(message, state, db, catalog, lang, message.from_user.id)
+    await _after_comment(message, state, db, catalog, settings, lang, message.from_user.id)
 
 
 @router.callback_query(CheckoutStates.comment, F.data == "skip")
-async def cb_skip_comment(callback: CallbackQuery, state: FSMContext, db: Database, catalog: Catalog, lang: str) -> None:
+async def cb_skip_comment(callback: CallbackQuery, state: FSMContext, db: Database, catalog: Catalog,
+                          settings: Settings, lang: str) -> None:
     await callback.answer()
     await callback.message.edit_reply_markup(reply_markup=None)
     await state.update_data(comment=None)
-    await _after_comment(callback.message, state, db, catalog, lang, callback.from_user.id)
+    await _after_comment(callback.message, state, db, catalog, settings, lang, callback.from_user.id)
 
 
 @router.callback_query(CheckoutStates.bonus, F.data.startswith("bonus:"))
-async def cb_bonus(callback: CallbackQuery, state: FSMContext, db: Database, catalog: Catalog, lang: str) -> None:
+async def cb_bonus(callback: CallbackQuery, state: FSMContext, db: Database, catalog: Catalog,
+                   settings: Settings, lang: str) -> None:
     await callback.answer()
     await callback.message.edit_reply_markup(reply_markup=None)
     await state.update_data(use_bonus=callback.data == "bonus:yes")
-    await _show_confirm(callback.message, state, db, catalog, lang, callback.from_user.id)
+    await _show_confirm(callback.message, state, db, catalog, settings, lang, callback.from_user.id)
 
 
-async def _show_confirm(message: Message, state: FSMContext, db: Database, catalog: Catalog, lang: str, user_id: int) -> None:
+async def _show_confirm(message: Message, state: FSMContext, db: Database, catalog: Catalog,
+                        settings: Settings, lang: str, user_id: int) -> None:
     data = await state.get_data()
     lines = cart_lines(await db.cart_items(user_id), catalog)
     if not lines:
         await state.clear()
         await message.answer(t("cart_empty", lang), reply_markup=kb.main_menu(lang))
         return
-    cart_text, subtotal = render_cart(lines, lang)
-    if data.get("use_bonus"):
-        used = min(await db.get_bonus(user_id), subtotal)
-        if used:
-            cart_text += "\n" + t("use_bonus", lang, amount=f"{used:,}".replace(",", " "))
-            cart_text += f"\n<b>{t('total', lang)}: {fmt_price(subtotal - used, lang)}</b>"
+    cart_text, _ = render_cart(lines, lang)
+    totals = checkout_totals(lines, await db.get_bonus(user_id), bool(data.get("use_bonus")), settings)
+    online = online_payment_enabled(settings) and totals.total > 0
     await state.set_state(CheckoutStates.confirm)
     await message.answer(
-        t("confirm_order", lang, cart=cart_text, phone=escape(data["phone"]),
-          address=escape(data["address"]), comment=escape(data.get("comment") or "—")),
-        reply_markup=kb.confirm_kb(lang),
+        t("confirm_order", lang,
+          cart=render_totals(cart_text, totals, lang),
+          phone=escape(data["phone"]),
+          address=escape(data["address"]),
+          comment=escape(data.get("comment") or "—"),
+          payment=t("choose_payment", lang) if online else t("payment_cash_note", lang)),
+        reply_markup=kb.payment_kb(lang) if online else kb.confirm_kb(lang),
     )
 
 
-@router.callback_query(CheckoutStates.confirm, F.data == "order:confirm")
+@router.callback_query(CheckoutStates.confirm, F.data.in_({"order:confirm", "order:online"}))
 async def cb_confirm(
     callback: CallbackQuery,
     state: FSMContext,
@@ -250,26 +309,96 @@ async def cb_confirm(
         await state.clear()
         await callback.message.answer(t("cart_empty", lang), reply_markup=kb.main_menu(lang))
         return
+    totals = checkout_totals(lines, await db.get_bonus(user_id), bool(data.get("use_bonus")), settings)
+    online = callback.data == "order:online" and online_payment_enabled(settings) and totals.total > 0
     items = [{"id": p.id, "name": p.name.get("uz", p.id), "price": p.price, "qty": q} for p, q in lines]
-    subtotal = sum(p.price * q for p, q in lines)
-    bonus_used = await db.get_bonus(user_id) if data.get("use_bonus") else 0
     order = await db.create_order(
         user_id=user_id,
         items=items,
-        subtotal=subtotal,
-        bonus_used=bonus_used,
+        subtotal=totals.subtotal,
+        bonus_used=totals.bonus_used,
         phone=data["phone"],
         address=data["address"],
         comment=data.get("comment"),
         bonus_percent=settings.bonus_percent,
+        delivery_fee=totals.delivery,
+        payment_method="online" if online else "cash",
     )
     await state.clear()
+
+    if online:
+        await send_invoice(callback.message, bot, settings, order, lang)
+        return
+    await db.log_event(user_id, "order", str(order.id))
     await callback.message.answer(
-        t("order_placed", lang, id=order.id, bonus=f"{order.bonus_earned:,}".replace(",", " ")),
+        t("order_placed", lang, id=order.id, bonus=_money(order.bonus_earned)),
         reply_markup=kb.main_menu(lang),
     )
-    await notify_admin(bot, settings, order, callback.from_user.full_name, user_id)
+    await notify_admin(bot, settings, order, callback.from_user.full_name)
 
+
+# --- Onlayn to'lov (Telegram Payments: Click / Payme) ---------------------------
+
+async def send_invoice(message: Message, bot: Bot, settings: Settings, order: Order, lang: str) -> None:
+    count = sum(int(it["qty"]) for it in order.items)
+    await message.answer(t("invoice_sent", lang, hours=settings.payment_ttl_hours), reply_markup=kb.main_menu(lang))
+    await bot.send_invoice(
+        chat_id=message.chat.id,
+        title=t("invoice_title", lang, id=order.id)[:32],
+        description=t("invoice_description", lang, count=count)[:255],
+        payload=f"order:{order.id}",
+        provider_token=settings.payment_provider_token,
+        currency=CURRENCY,
+        prices=[LabeledPrice(label=t("invoice_title", lang, id=order.id)[:32], amount=order.total * CURRENCY_EXP)],
+    )
+
+
+def _order_id_from_payload(payload: str) -> int | None:
+    prefix, _, raw = payload.partition(":")
+    return int(raw) if prefix == "order" and raw.isdigit() else None
+
+
+@router.pre_checkout_query()
+async def pre_checkout(query: PreCheckoutQuery, db: Database, lang: str) -> None:
+    """Telegram to'lovdan oldin so'raydi: buyurtma hali ham to'lanishi mumkinmi."""
+    order_id = _order_id_from_payload(query.invoice_payload)
+    order = await db.get_order(order_id) if order_id else None
+    ok = (
+        order is not None
+        and order.user_id == query.from_user.id
+        and order.status == "awaiting_payment"
+        and not order.paid
+        and query.currency == CURRENCY
+        and query.total_amount == order.total * CURRENCY_EXP
+    )
+    if ok:
+        await query.answer(ok=True)
+    else:
+        log.warning("Pre-checkout rad etildi: payload=%s user=%s", query.invoice_payload, query.from_user.id)
+        await query.answer(ok=False, error_message=t("payment_problem", lang))
+
+
+@router.message(F.successful_payment)
+async def successful_payment(message: Message, bot: Bot, db: Database, settings: Settings, lang: str) -> None:
+    payment = message.successful_payment
+    order_id = _order_id_from_payload(payment.invoice_payload)
+    if order_id is None:
+        log.error("Noma'lum to'lov payload: %s", payment.invoice_payload)
+        return
+    order = await db.mark_paid(order_id, payment.telegram_payment_charge_id)
+    if order is None:
+        log.error("To'langan buyurtma topilmadi: %s", order_id)
+        return
+    await db.log_event(message.from_user.id, "order", str(order.id))
+    await db.log_event(message.from_user.id, "paid", str(order.id))
+    await message.answer(
+        t("payment_received", lang, id=order.id, bonus=_money(order.bonus_earned)),
+        reply_markup=kb.main_menu(lang),
+    )
+    await notify_admin(bot, settings, order, message.from_user.full_name)
+
+
+# --- Admin xabarlari ---------------------------------------------------------
 
 def admin_order_text(order: Order, customer_name: str | None = None) -> str:
     lines = [f"🛒 <b>Buyurtma №{order.id}</b> ({order.status})"]
@@ -280,15 +409,20 @@ def admin_order_text(order: Order, customer_name: str | None = None) -> str:
         lines.append(f"💬 {escape(order.comment)}")
     lines.append("")
     for it in order.items:
-        lines.append(f"• {escape(it['name'])} × {it['qty']} = {it['price'] * it['qty']:,} so'm".replace(",", " "))
+        lines.append(f"• {escape(it['name'])} × {it['qty']} = {_money(it['price'] * it['qty'])} so'm")
     lines.append("")
     if order.bonus_used:
-        lines.append(f"Bonus: −{order.bonus_used:,} so'm".replace(",", " "))
-    lines.append(f"<b>Jami: {order.total:,} so'm</b>".replace(",", " "))
+        lines.append(f"Bonus: −{_money(order.bonus_used)} so'm")
+    lines.append(f"Yetkazib berish: {_money(order.delivery_fee)} so'm" if order.delivery_fee else "Yetkazib berish: bepul")
+    lines.append(f"<b>Jami: {_money(order.total)} so'm</b>")
+    if order.payment_method == "online":
+        lines.append("💳 Onlayn: " + ("✅ TO'LANGAN" if order.paid else "⏳ to'lanmagan"))
+    else:
+        lines.append("💵 Kuryerga to'lov")
     return "\n".join(lines)
 
 
-async def notify_admin(bot: Bot, settings: Settings, order: Order, customer_name: str, user_id: int) -> None:
+async def notify_admin(bot: Bot, settings: Settings, order: Order, customer_name: str) -> None:
     if settings.admin_chat_id is None:
         log.warning("ADMIN_CHAT_ID o'rnatilmagan: buyurtma №%s haqida xabar yuborilmadi", order.id)
         return

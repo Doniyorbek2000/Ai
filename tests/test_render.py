@@ -1,5 +1,11 @@
 from beauty_bot.ai.schemas import PerfumePick, PerfumePicks
-from beauty_bot.render import cart_lines, render_cart, render_perfume, render_skin, split_message
+from beauty_bot.render import (
+    cart_lines,
+    render_cart,
+    render_perfume,
+    render_skin,
+    split_message,
+)
 
 from .fakes import skin_result
 
